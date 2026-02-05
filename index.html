@@ -49,7 +49,7 @@
         /* Player Area */
         #player-container { flex-grow: 1; display: flex; flex-direction: column; background: #000; position: relative; }
         .video-wrapper { width: 100%; flex-grow: 1; display: flex; align-items: center; justify-content: center; }
-        video { width: 95%; max-height: 85vh; border-radius: 10px; box-shadow: 0 0 30px rgba(0,0,0,0.8); background: #000;}
+        video { width: 95%; max-height: 85vh; border-radius: 10px; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
 
         /* Custom Controls */
         .player-footer { padding: 15px; background: #151515; display: flex; justify-content: center; gap: 20px; }
@@ -89,79 +89,73 @@
     const hls = new Hls();
     let allChannels = [];
 
-    // আপডেট করা এবং কার্যকরী চ্যানেল লিস্ট (Sony Aath সহ)
-    const manualChannels = [
-        { name: "Sony Aath (সনি আট)", url: "https://d2q8p4pe5nebak.cloudfront.net/v1/master/927b8a9b05663ee14b6aa792bc46687333800632/SonyAath/playlist.m3u8" },
+    // এখানে কিছু গুরুত্বপূর্ণ বাংলাদেশি চ্যানেল ম্যানুয়ালি যোগ করা হয়েছে
+    const manualBDChannels = [
         { name: "Somoy TV", url: "https://somoytv-fcdn.shofur.com/somoytv/somoy.smil/playlist.m3u8" },
         { name: "Jamuna TV", url: "https://live-jamuna.shofur.com/jamuna/live/playlist.m3u8" },
         { name: "Independent TV", url: "https://itv-fcdn.shofur.com/itv/itv.smil/playlist.m3u8" },
         { name: "Channel i", url: "https://channel-i-fcdn.shofur.com/channel-i/channel-i.smil/playlist.m3u8" },
-        { name: "RTV Live", url: "https://rtv-fcdn.shofur.com/rtv/rtv.smil/playlist.m3u8" },
-        { name: "DBC News", url: "https://dbc-fcdn.shofur.com/dbc/dbc.smil/playlist.m3u8" },
-        { name: "Ekattor TV", url: "https://71-fcdn.shofur.com/71/71.smil/playlist.m3u8" }
+        { name: "RTV", url: "https://rtv-fcdn.shofur.com/rtv/rtv.smil/playlist.m3u8" }
     ];
 
     async function loadPlaylist() {
         try {
-            const r = await fetch('https://iptv-org.github.io/iptv/countries/bd.m3u'); // সরাসরি বিডি প্লেলিস্ট
+            const r = await fetch('https://iptv-org.github.io/iptv/index.m3u');
             const data = await r.text();
             const lines = data.split('\n');
             
             let currentName = '';
-            let fetchedBD = [];
+            let currentGroup = '';
+            let fetchedChannels = [];
 
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i].trim();
                 if (line.startsWith('#EXTINF:')) {
                     currentName = line.split(',')[1] || "Unknown";
+                    currentGroup = line.includes('group-title="') ? line.split('group-title="')[1].split('"')[0] : "";
                 } else if (line.startsWith('http')) {
-                    fetchedBD.push({ name: currentName, url: line });
+                    fetchedChannels.push({ name: currentName, url: line, group: currentGroup });
                 }
             }
 
-            // ইন্ডিয়ান চ্যানেলগুলোর জন্য অন্য একটি সোর্স (Sony Aath এর মতো চ্যানেলের জন্য)
-            allChannels = [...manualChannels, ...fetchedBD];
+            // সর্টিং লজিক
+            const bd = fetchedChannels.filter(c => c.name.toLowerCase().includes('bangladesh') || c.group.toLowerCase().includes('bangladesh'));
+            const ind = fetchedChannels.filter(c => (c.name.toLowerCase().includes('india') || c.group.toLowerCase().includes('india')) && !bd.includes(c));
+            const others = fetchedChannels.filter(c => !bd.includes(c) && !ind.includes(c));
+
+            // ম্যানুয়াল বিডি চ্যানেলগুলো সবার উপরে থাকবে
+            allChannels = [...manualBDChannels, ...bd, ...ind, ...others];
             displayChannels(allChannels);
         } catch (e) { 
-            // যদি অনলাইন প্লেলিস্ট ফেইল করে তবে শুধু ম্যানুয়াল চ্যানেলগুলো দেখাবে
-            allChannels = [...manualChannels];
-            displayChannels(allChannels);
+            document.getElementById('channel-list').innerText = "চ্যানেল লোড করতে সমস্যা হচ্ছে।"; 
         }
     }
 
     function displayChannels(channels) {
         const list = document.getElementById('channel-list');
         list.innerHTML = '';
-        channels.forEach((ch, index) => {
+        channels.forEach(ch => {
             const item = document.createElement('div');
             item.className = 'channel-item';
             item.innerHTML = `<i class="fas fa-play-circle"></i> ${ch.name}`;
             
-            item.onclick = () => playChannel(ch.url, item);
+            item.onclick = () => {
+                // হাইলাইট পরিবর্তন
+                document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+
+                // চ্যানেল প্লে
+                if (Hls.isSupported()) {
+                    hls.loadSource(ch.url);
+                    hls.attachMedia(video);
+                    video.play();
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = ch.url;
+                    video.play();
+                }
+            };
             list.appendChild(item);
         });
-    }
-
-    function playChannel(url, element) {
-        // হাইলাইট পরিবর্তন
-        document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
-        element.classList.add('active');
-
-        if (Hls.isSupported()) {
-            hls.destroy(); // আগের কানেকশন রিমুভ করা
-            const newHls = new Hls();
-            newHls.loadSource(url);
-            newHls.attachMedia(video);
-            newHls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-            
-            // যদি লিঙ্ক কাজ না করে তবে মেসেজ দিবে
-            newHls.on(Hls.Events.ERROR, (event, data) => {
-                if (data.fatal) console.error("Channel Load Failed");
-            });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = url;
-            video.play();
-        }
     }
 
     function filterChannels() {
