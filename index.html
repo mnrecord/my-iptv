@@ -1,53 +1,102 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BD IPTV Player</title>
+    <title>Premium BD IPTV Player</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { margin: 0; display: flex; height: 100vh; background: #0f0f0f; color: white; font-family: sans-serif; overflow: hidden; }
-        #sidebar { width: 300px; background: #1a1a1a; display: flex; flex-direction: column; border-right: 1px solid #333; }
-        #sidebar h2 { padding: 15px; margin: 0; background: #252525; font-size: 18px; text-align: center; color: #00ff88; }
-        
-        /* সার্চ বক্সের স্টাইল */
-        #search-container { padding: 10px; background: #252525; }
-        #search-input { width: 90%; padding: 8px; border-radius: 5px; border: none; background: #333; color: white; outline: none; }
+        :root {
+            --primary-color: #00ff88;
+            --bg-dark: #0f0f0f;
+            --sidebar-bg: #181818;
+            --hover-bg: #2a2a2a;
+            --active-bg: #00ff8822;
+        }
 
-        #channel-list { flex-grow: 1; overflow-y: auto; }
-        .channel-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #262626; font-size: 14px; }
-        .channel-item:hover { background: #333; color: #00ff88; }
+        body { margin: 0; display: flex; height: 100vh; background: var(--bg-dark); color: white; font-family: 'Segoe UI', Roboto, sans-serif; overflow: hidden; }
         
-        #player-container { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: black; }
-        video { width: 100%; height: auto; max-height: 80vh; background: black; }
+        /* Sidebar Design */
+        #sidebar { width: 320px; background: var(--sidebar-bg); display: flex; flex-direction: column; border-right: 1px solid #333; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+        .sidebar-header { padding: 20px; background: #202020; text-align: center; border-bottom: 1px solid #333; }
+        .sidebar-header h2 { margin: 0; font-size: 20px; color: var(--primary-color); letter-spacing: 1px; }
+
+        /* Search Box */
+        .search-box { padding: 15px; position: relative; }
+        .search-box input { 
+            width: 100%; padding: 12px 35px 12px 15px; border-radius: 8px; border: 1px solid #333; 
+            background: #252525; color: white; outline: none; box-sizing: border-box; transition: 0.3s;
+        }
+        .search-box input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px rgba(0,255,136,0.2); }
+        .search-box i { position: absolute; right: 25px; top: 28px; color: #777; }
+
+        /* Channel List */
+        #channel-list { flex-grow: 1; overflow-y: auto; padding: 5px; scrollbar-width: thin; scrollbar-color: #444 transparent; }
+        .channel-item { 
+            padding: 12px 15px; cursor: pointer; border-radius: 8px; margin-bottom: 4px;
+            display: flex; align-items: center; transition: all 0.2s; border: 1px solid transparent;
+        }
+        .channel-item:hover { background: var(--hover-bg); transform: translateX(5px); }
+        .channel-item i { margin-right: 12px; color: #777; font-size: 14px; }
         
-        .controls { padding: 20px; text-align: center; }
-        .vol-btn { padding: 10px 20px; background: #333; color: white; border: none; cursor: pointer; border-radius: 5px; margin: 5px; }
-        .vol-btn:hover { background: #444; }
+        /* Highlighting Active Channel */
+        .channel-item.active { 
+            background: var(--active-bg); border: 1px solid var(--primary-color); color: var(--primary-color); font-weight: bold; 
+        }
+        .channel-item.active i { color: var(--primary-color); }
+
+        /* Player Area */
+        #player-container { flex-grow: 1; display: flex; flex-direction: column; background: #000; position: relative; }
+        .video-wrapper { width: 100%; flex-grow: 1; display: flex; align-items: center; justify-content: center; }
+        video { width: 95%; max-height: 85vh; border-radius: 10px; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+
+        /* Custom Controls */
+        .player-footer { padding: 15px; background: #151515; display: flex; justify-content: center; gap: 20px; }
+        .control-btn { 
+            background: transparent; border: 1px solid #444; color: white; padding: 8px 15px; 
+            border-radius: 5px; cursor: pointer; transition: 0.3s; 
+        }
+        .control-btn:hover { background: var(--primary-color); color: black; border-color: var(--primary-color); }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <h2>BD IPTV Player</h2>
-    <div id="search-container">
-        <input type="text" id="search-input" placeholder="সার্চ চ্যানেল..." onkeyup="filterChannels()">
+    <div class="sidebar-header">
+        <h2><i class="fas fa-tv"></i> LIVE TV BD</h2>
     </div>
-    <div id="channel-list">লোড হচ্ছে...</div>
+    <div class="search-box">
+        <input type="text" id="search-input" placeholder="চ্যানেল খুঁজুন..." onkeyup="filterChannels()">
+        <i class="fas fa-search"></i>
+    </div>
+    <div id="channel-list">চ্যানেল লোড হচ্ছে...</div>
 </div>
 
 <div id="player-container">
-    <video id="video" controls autoplay></video>
-    <div class="controls">
-        <button class="vol-btn" onclick="changeVolume(-0.1)">🔉 -</button>
-        <button class="vol-btn" onclick="changeVolume(0.1)">🔊 +</button>
+    <div class="video-wrapper">
+        <video id="video" controls autoplay poster="https://via.placeholder.com/800x450/000/00ff88?text=Select+a+Channel"></video>
+    </div>
+    <div class="player-footer">
+        <button class="control-btn" onclick="changeVolume(-0.1)"><i class="fas fa-volume-down"></i></button>
+        <button class="control-btn" onclick="changeVolume(0.1)"><i class="fas fa-volume-up"></i></button>
+        <button class="control-btn" onclick="location.reload()"><i class="fas fa-sync-alt"></i> রিফ্রেশ</button>
     </div>
 </div>
 
 <script>
     const video = document.getElementById('video');
     const hls = new Hls();
-    let allChannels = []; // সব চ্যানেল সেভ করার জন্য
+    let allChannels = [];
+
+    // এখানে কিছু গুরুত্বপূর্ণ বাংলাদেশি চ্যানেল ম্যানুয়ালি যোগ করা হয়েছে
+    const manualBDChannels = [
+        { name: "Somoy TV", url: "https://somoytv-fcdn.shofur.com/somoytv/somoy.smil/playlist.m3u8" },
+        { name: "Jamuna TV", url: "https://live-jamuna.shofur.com/jamuna/live/playlist.m3u8" },
+        { name: "Independent TV", url: "https://itv-fcdn.shofur.com/itv/itv.smil/playlist.m3u8" },
+        { name: "Channel i", url: "https://channel-i-fcdn.shofur.com/channel-i/channel-i.smil/playlist.m3u8" },
+        { name: "RTV", url: "https://rtv-fcdn.shofur.com/rtv/rtv.smil/playlist.m3u8" }
+    ];
 
     async function loadPlaylist() {
         try {
@@ -57,36 +106,28 @@
             
             let currentName = '';
             let currentGroup = '';
+            let fetchedChannels = [];
 
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i].trim();
                 if (line.startsWith('#EXTINF:')) {
-                    // চ্যানেলের নাম বের করা
                     currentName = line.split(',')[1] || "Unknown";
-                    // গ্রুপ বা দেশ বের করা
-                    if (line.includes('group-title="')) {
-                        currentGroup = line.split('group-title="')[1].split('"')[0];
-                    } else {
-                        currentGroup = "";
-                    }
+                    currentGroup = line.includes('group-title="') ? line.split('group-title="')[1].split('"')[0] : "";
                 } else if (line.startsWith('http')) {
-                    allChannels.push({ name: currentName, url: line, group: currentGroup });
+                    fetchedChannels.push({ name: currentName, url: line, group: currentGroup });
                 }
             }
 
-            // ১. বাংলাদেশি চ্যানেল আলাদা করা
-            const bdChannels = allChannels.filter(c => c.name.toLowerCase().includes('bangladesh') || c.group.toLowerCase().includes('bangladesh'));
-            // ২. ইন্ডিয়ান চ্যানেল আলাদা করা
-            const inChannels = allChannels.filter(c => (c.name.toLowerCase().includes('india') || c.group.toLowerCase().includes('india')) && !bdChannels.includes(c));
-            // ৩. অন্যান্য চ্যানেল
-            const otherChannels = allChannels.filter(c => !bdChannels.includes(c) && !inChannels.includes(c));
+            // সর্টিং লজিক
+            const bd = fetchedChannels.filter(c => c.name.toLowerCase().includes('bangladesh') || c.group.toLowerCase().includes('bangladesh'));
+            const ind = fetchedChannels.filter(c => (c.name.toLowerCase().includes('india') || c.group.toLowerCase().includes('india')) && !bd.includes(c));
+            const others = fetchedChannels.filter(c => !bd.includes(c) && !ind.includes(c));
 
-            // সাজানো তালিকা তৈরি: BD -> India -> Others
-            allChannels = [...bdChannels, ...inChannels, ...otherChannels];
-            
+            // ম্যানুয়াল বিডি চ্যানেলগুলো সবার উপরে থাকবে
+            allChannels = [...manualBDChannels, ...bd, ...ind, ...others];
             displayChannels(allChannels);
         } catch (e) { 
-            document.getElementById('channel-list').innerText = "Error loading list"; 
+            document.getElementById('channel-list').innerText = "চ্যানেল লোড করতে সমস্যা হচ্ছে।"; 
         }
     }
 
@@ -96,18 +137,27 @@
         channels.forEach(ch => {
             const item = document.createElement('div');
             item.className = 'channel-item';
-            item.innerText = ch.name;
+            item.innerHTML = `<i class="fas fa-play-circle"></i> ${ch.name}`;
+            
             item.onclick = () => {
+                // হাইলাইট পরিবর্তন
+                document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+
+                // চ্যানেল প্লে
                 if (Hls.isSupported()) {
                     hls.loadSource(ch.url);
                     hls.attachMedia(video);
+                    video.play();
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = ch.url;
+                    video.play();
                 }
             };
             list.appendChild(item);
         });
     }
 
-    // সার্চ ফাংশন
     function filterChannels() {
         const query = document.getElementById('search-input').value.toLowerCase();
         const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(query));
