@@ -3,37 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Premium BD IPTV Player</title>
+    <title>Premium IPTV Player - BD & India</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
-            --primary-color: #00ff88;
-            --bg-dark: #0f0f0f;
-            --sidebar-bg: #181818;
-            --hover-bg: #2a2a2a;
-            --active-bg: #00ff8822;
+            --primary: #00ff88;
+            --bg: #0a0a0a;
+            --side-bg: #141414;
+            --text: #ffffff;
+            --hover: #252525;
         }
 
-        body { margin: 0; display: flex; height: 100vh; background: var(--bg-dark); color: white; font-family: 'Segoe UI', Roboto, sans-serif; overflow: hidden; }
-        
+        body { margin: 0; display: flex; height: 100vh; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+
         /* Sidebar Design */
-        #sidebar { width: 320px; background: var(--sidebar-bg); display: flex; flex-direction: column; border-right: 1px solid #333; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
-        .sidebar-header { padding: 20px; background: #202020; text-align: center; border-bottom: 1px solid #333; }
-        .sidebar-header h2 { margin: 0; font-size: 20px; color: var(--primary-color); letter-spacing: 1px; }
+        #sidebar { width: 320px; background: var(--side-bg); display: flex; flex-direction: column; border-right: 1px solid #333; }
+        .header { padding: 20px; text-align: center; border-bottom: 1px solid #222; }
+        .header h2 { margin: 0; font-size: 20px; color: var(--primary); }
 
         /* Search Box */
-        .search-box { padding: 15px; position: relative; }
-        .search-box input { 
-            width: 100%; padding: 12px 35px 12px 15px; border-radius: 8px; border: 1px solid #333; 
-            background: #252525; color: white; outline: none; box-sizing: border-box; transition: 0.3s;
+        .search-area { padding: 15px; }
+        #search-input { 
+            width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #333; 
+            background: #1f1f1f; color: white; outline: none; box-sizing: border-box;
         }
-        .search-box input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px rgba(0,255,136,0.2); }
-        .search-box i { position: absolute; right: 25px; top: 28px; color: #777; }
+        #search-input:focus { border-color: var(--primary); }
 
         /* Channel List */
-        #channel-list { flex-grow: 1; overflow-y: auto; padding: 5px; scrollbar-width: thin; scrollbar-color: #444 transparent; }
+        #channel-list { flex-grow: 1; overflow-y: auto; padding: 10px; }
         .channel-item { 
+            padding: 12px; cursor: pointer; border-radius: 5px; margin-bottom: 5px;
+            transition: 0.3s; display: flex; align-items: center; gap: 10px;
+            border: 1px solid transparent;
+        }
+        .channel-item:hover { background: var(--hover); }
+        
+        /* Highlighting Active Channel */
+        .channel-item.active { 
+            background: rgba(0, 255, 136, 0.1); 
+            border: 1px solid var(--primary); 
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        /* Player Area */
+        #player-container { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #000; }
+        video { width: 90%; max-height: 80vh; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        
+        .controls { margin-top: 20px; display: flex; gap: 15px; }
+        .btn { padding: 10px 20px; background: #222; border: 1px solid #444; color: white; cursor: pointer; border-radius: 5px; }
+        .btn:hover { background: var(--primary); color: black; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="header"><h2><i class="fas fa-play-circle"></i> BD LIVE TV</h2></div>
+    <div class="search-area">
+        <input type="text" id="search-input" placeholder="চ্যানেল সার্চ করুন..." onkeyup="filterChannels()">
+    </div>
+    <div id="channel-list">লোড হচ্ছে...</div>
+</div>
+
+<div id="player-container">
+    <video id="video" controls autoplay></video>
+    <div class="controls">
+        <button class="btn" onclick="changeVolume(-0.1)"><i class="fas fa-volume-down"></i></button>
+        <button class="btn" onclick="changeVolume(0.1)"><i class="fas fa-volume-up"></i></button>
+        <button class="btn" onclick="location.reload()"><i class="fas fa-sync"></i> রিফ্রেশ</button>
+    </div>
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const hls = new Hls();
+    let allChannels = [];
+
+    // ম্যানুয়াল আপডেট করা চ্যানেল লিস্ট
+    const manualChannels = [
+        { name: "Sony Aath (সনি আট)", url: "https://d2q8p4pe5nebak.cloudfront.net/v1/master/927b8a9b05663ee14b6aa792bc46687333800632/SonyAath/playlist.m3u8" },
+        { name: "Somoy TV", url: "https://somoytv-fcdn.shofur.com/somoytv/somoy.smil/playlist.m3u8" },
+        { name: "Jamuna TV", url: "https://live-jamuna.shofur.com/jamuna/live/playlist.m3u8" },
+        { name: "Independent TV", url: "https://itv-fcdn.shofur.com/itv/itv.smil/playlist.m3u8" },
+        { name: "Channel i", url: "https://channel-i-fcdn.shofur.com/channel-i/channel-i.smil/playlist.m3u8" },
+        { name: "RTV Live", url: "https://rtv-fcdn.shofur.com/rtv/rtv.smil/playlist.m3u8" }
+    ];
+
+    async function loadPlaylist() {
+        try {
+            // অনলাইন সোর্স থেকে বাংলাদেশি চ্যানেল লোড করা
+            const r = await fetch('https://iptv-org.github.io/iptv/countries/bd.m3u');
+            const data = await r.text();
+            const lines = data.split('\n');
+            let fetchedBD = [];
+            let currentName = '';
+
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].startsWith('#EXTINF:')) {
+                    currentName = lines[i].split(',')[1] || "Unknown";
+                } else if (lines[i].startsWith('http')) {
+                    fetchedBD.push({ name: currentName, url: lines[i].trim() });
+                }
+            }
+
+            // ম্যানুয়াল চ্যানেলগুলো সবার উপরে রেখে তারপর অনলাইনগুলো যোগ করা
+            allChannels = [...manualChannels, ...fetchedBD];
+            displayChannels(allChannels);
+        } catch (e) { 
+            allChannels = [...manualChannels];
+            displayChannels(allChannels);
+        }
+    }
+
+    function displayChannels(channels) {
+        const list = document.getElementById('channel-list');
+        list.innerHTML = '';
+        channels.forEach(ch => {
+            const item = document.createElement('div');
+            item.className = 'channel-item';
+            item.innerHTML = `<i class="fas fa-play"></i> ${ch.name}`;
+            
+            item.onclick = () => {
+                // হাইলাইট ম্যানেজমেন্ট
+                document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+
+                // প্লেয়ার লজিক
+                if (Hls.isSupported()) {
+                    hls.loadSource(ch.url);
+                    hls.attachMedia(video);
+                    video.play();
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = ch.url;
+                    video.play();
+                }
+            };
+            list.appendChild(item);
+        });
+    }
+
+    function filterChannels() {
+        const query = document.getElementById('search-input').value.toLowerCase();
+        const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(query));
+        displayChannels(filtered);
+    }
+
+    function changeVolume(a) { 
+        let v = video.volume + a; 
+        if (v >= 0 && v <= 1) video.volume = v; 
+    }
+
+    loadPlaylist();
+</script>
+</body>
+</html>
             padding: 12px 15px; cursor: pointer; border-radius: 8px; margin-bottom: 4px;
             display: flex; align-items: center; transition: all 0.2s; border: 1px solid transparent;
         }
